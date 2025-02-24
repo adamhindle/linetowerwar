@@ -1,0 +1,337 @@
+[gd_scene load_steps=11 format=3 uid="uid://bga74hdoqeu06"]
+
+[ext_resource type="Script" path="res://Scripts/main.gd" id="1_g0ii7"]
+[ext_resource type="Script" path="res://Scripts/camera_3d.gd" id="2_ioap6"]
+[ext_resource type="PackedScene" uid="uid://dqstf10u7yqaa" path="res://Scenes/test_cube.tscn" id="3_hbxeq"]
+[ext_resource type="Script" path="res://Scripts/game_ui.gd" id="3_ncqa8"]
+[ext_resource type="Script" path="res://Scripts/grid_manager.gd" id="3_w0wqq"]
+[ext_resource type="PackedScene" uid="uid://c8q5p0tg4j6y1" path="res://Scenes/tower_upgrade_ui.tscn" id="4_5gaau"]
+[ext_resource type="Script" path="res://Scripts/tower_manager.gd" id="5_3dsmv"]
+[ext_resource type="Script" path="res://Scripts/game_manager.gd" id="6_qdrcs"]
+[ext_resource type="Script" path="res://Scripts/enemy_manager.gd" id="7_nc2ap"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_y6fcn"]
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_g0ii7")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+script = ExtResource("2_ioap6")
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_ncqa8")
+
+[node name="TowerUpgradeUI" parent="UI" instance=ExtResource("4_5gaau")]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 69.0
+offset_right = 204.0
+offset_bottom = 369.0
+
+[node name="ModeSelectionPanel" type="Panel" parent="UI"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -150.0
+offset_right = 200.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleLabel" type="Label" parent="UI/ModeSelectionPanel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 20.0
+offset_bottom = 50.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 24
+text = "Select Game Mode"
+horizontal_alignment = 1
+
+[node name="EndlessButton" type="Button" parent="UI/ModeSelectionPanel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -50.0
+offset_right = 100.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Endless Waves"
+
+[node name="VSPlayerButton" type="Button" parent="UI/ModeSelectionPanel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_right = 100.0
+offset_bottom = 40.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "VS Player"
+
+[node name="VSAIButton" type="Button" parent="UI/ModeSelectionPanel"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = 50.0
+offset_right = 100.0
+offset_bottom = 90.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "VS AI"
+
+[node name="EndlessModePanel" type="Panel" parent="UI"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TowerSelection" type="Panel" parent="UI/EndlessModePanel"]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 53.0
+offset_right = 83.0
+offset_bottom = 53.0
+
+[node name="GridContainer" type="GridContainer" parent="UI/EndlessModePanel/TowerSelection"]
+layout_mode = 0
+offset_left = -1.0
+offset_right = 86.0
+offset_bottom = 594.0
+
+[node name="ResourcePanel" type="Panel" parent="UI/EndlessModePanel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 53.0
+grow_horizontal = 2
+
+[node name="GoldLabel" type="Label" parent="UI/EndlessModePanel/ResourcePanel"]
+layout_mode = 0
+offset_left = 309.0
+offset_top = 1.0
+offset_right = 428.0
+offset_bottom = 50.0
+theme_override_font_sizes/font_size = 35
+text = "Gold"
+
+[node name="IncomeLabel" type="Label" parent="UI/EndlessModePanel/ResourcePanel"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 3.0
+offset_right = 287.0
+offset_bottom = 52.0
+theme_override_font_sizes/font_size = 35
+text = "Income"
+
+[node name="WaveLabel" type="Label" parent="UI/EndlessModePanel/ResourcePanel"]
+layout_mode = 0
+offset_left = 950.0
+offset_top = 7.0
+offset_right = 1118.0
+offset_bottom = 49.0
+theme_override_font_sizes/font_size = 30
+text = "Wave: 0"
+
+[node name="NextWaveButton" type="Button" parent="UI/EndlessModePanel/ResourcePanel"]
+layout_mode = 0
+offset_left = 1124.0
+offset_top = 9.0
+offset_right = 1274.0
+offset_bottom = 44.0
+text = "Start Next Wave"
+
+[node name="BaseHealthLabel" type="Label" parent="UI/EndlessModePanel/ResourcePanel"]
+layout_mode = 0
+offset_left = 637.0
+offset_right = 808.0
+offset_bottom = 49.0
+theme_override_font_sizes/font_size = 35
+text = "Lives: 100"
+
+[node name="VSModePanel" type="Panel" parent="UI"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ResourcePanel" type="Panel" parent="UI/VSModePanel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 53.0
+grow_horizontal = 2
+
+[node name="GoldLabel" type="Label" parent="UI/VSModePanel/ResourcePanel"]
+layout_mode = 0
+offset_left = 309.0
+offset_top = 1.0
+offset_right = 428.0
+offset_bottom = 50.0
+theme_override_font_sizes/font_size = 35
+text = "Gold"
+
+[node name="IncomeLabel" type="Label" parent="UI/VSModePanel/ResourcePanel"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 3.0
+offset_right = 287.0
+offset_bottom = 52.0
+theme_override_font_sizes/font_size = 35
+text = "Income"
+
+[node name="BaseHealthLabel" type="Label" parent="UI/VSModePanel/ResourcePanel"]
+layout_mode = 0
+offset_left = 637.0
+offset_right = 808.0
+offset_bottom = 49.0
+theme_override_font_sizes/font_size = 35
+text = "Lives: 100"
+
+[node name="AIHealthLabel" type="Label" parent="UI/VSModePanel/ResourcePanel"]
+layout_mode = 0
+offset_left = 950.0
+offset_top = 7.0
+offset_right = 1118.0
+offset_bottom = 49.0
+theme_override_font_sizes/font_size = 30
+text = "AI Lives: 100"
+
+[node name="TowerSelection" type="Panel" parent="UI/VSModePanel"]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 53.0
+offset_right = 83.0
+offset_bottom = 53.0
+
+[node name="GridContainer" type="GridContainer" parent="UI/VSModePanel/TowerSelection"]
+layout_mode = 0
+offset_left = -1.0
+offset_right = 86.0
+offset_bottom = 594.0
+
+[node name="SendEnemiesContainer" type="VBoxContainer" parent="UI/VSModePanel"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -250.0
+offset_right = 190.0
+offset_bottom = -10.0
+grow_vertical = 0
+
+[node name="EnemySelectionHeader" type="Panel" parent="UI/VSModePanel/SendEnemiesContainer"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/VSModePanel/SendEnemiesContainer/EnemySelectionHeader"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Send Enemies"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GameOverPanel" type="Panel" parent="UI"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -18.0
+offset_right = 1256.0
+offset_bottom = 698.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/GameOverPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 362.0
+offset_top = 127.0
+offset_right = -340.0
+offset_bottom = -147.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="GameOverLabel" type="Label" parent="UI/GameOverPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "Game Over!"
+horizontal_alignment = 1
+
+[node name="RestartButton" type="Button" parent="UI/GameOverPanel/VBoxContainer"]
+layout_mode = 2
+text = "Restart Game"
+
+[node name="BuildArea_Left" type="MeshInstance3D" parent="."]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="BuildArea_Left"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BuildArea_Left/StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.511791, 0, 0)
+shape = SubResource("BoxShape3D_y6fcn")
+
+[node name="BuildArea_Right" type="MeshInstance3D" parent="."]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="BuildArea_Right"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BuildArea_Right/StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.511791, 0, 0)
+shape = SubResource("BoxShape3D_y6fcn")
+
+[node name="Lane" type="MeshInstance3D" parent="."]
+
+[node name="TestCube" parent="." instance=ExtResource("3_hbxeq")]
+visible = false
+
+[node name="GridManager" type="Node3D" parent="."]
+script = ExtResource("3_w0wqq")
+
+[node name="TowerManager" type="Node" parent="."]
+script = ExtResource("5_3dsmv")
+
+[node name="GameManager" type="Node" parent="."]
+script = ExtResource("6_qdrcs")
+
+[node name="EnemyManager" type="Node" parent="."]
+script = ExtResource("7_nc2ap")

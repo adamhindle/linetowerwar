@@ -1,0 +1,35 @@
+[gd_scene load_steps=5 format=3 uid="uid://dqstf10u7yqaa"]
+
+[ext_resource type="Script" path="res://Scripts/test_cube.gd" id="1_cube"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_cube"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_outline"]
+size = Vector3(1.1, 1.1, 1.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_collision"]
+
+[node name="TestCube" type="Node3D"]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+collision_layer = 32
+collision_mask = 0
+script = ExtResource("1_cube")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D"]
+mesh = SubResource("BoxMesh_cube")
+
+[node name="OutlineEffect" type="MeshInstance3D" parent="StaticBody3D"]
+visible = false
+mesh = SubResource("BoxMesh_outline")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+shape = SubResource("BoxShape3D_collision")
+
+[node name="MouseArea" type="Area3D" parent="StaticBody3D"]
+collision_layer = 32
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D/MouseArea"]
+shape = SubResource("BoxShape3D_collision")

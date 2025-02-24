@@ -1,0 +1,23 @@
+[gd_scene load_steps=5 format=3 uid="uid://4ahovl2vj565"]
+
+[ext_resource type="Script" path="res://Scripts/enemy.gd" id="1_enemy"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_enemy"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_enemy"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_collision"]
+
+[node name="Enemy" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("1_enemy")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_enemy")
+surface_material_override/0 = SubResource("StandardMaterial3D_enemy")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_collision")
+
+[node name="HealthBar" type="Node3D" parent="."]
