@@ -4,7 +4,7 @@ extends Node3D
 signal build_mode_changed(is_building: bool)
 
 var grid_size = 1.0
-var grid_width = 2
+var grid_width = 10  # Wider grid to accommodate all lanes
 var grid_height = 20
 var occupied_positions = {}
 
@@ -24,7 +24,7 @@ var build_mode: bool = false:
 		if build_mode != value:
 			build_mode = value
 			build_mode_changed.emit(build_mode)
-			print("Build mode changed to: ", build_mode)
+			print("[GridManager] Build mode changed to: ", build_mode)
 			if build_mode:
 				deselect_all_towers()
 
@@ -32,7 +32,7 @@ func _ready():
 	tower_manager = get_node("/root/Main/TowerManager")
 	game_manager = get_node("/root/Main/GameManager")
   
-  # Setup placeholder materials
+	# Setup placeholder materials
 	valid_material = StandardMaterial3D.new()
 	valid_material.albedo_color = Color(0, 1, 0, 0.5)
 	valid_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -70,7 +70,7 @@ func _input(event):
 			if build_mode:
 				place_tower_at_mouse()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-	  # Right click exits build mode
+			# Right click exits build mode
 			exit_build_mode()
 
 func _process(_delta):
@@ -94,7 +94,7 @@ func update_placeholder_position():
 		placeholder_tower.visible = true
 		placeholder_tower.position = world_pos
 	
-	# Check placement validity
+		# Check placement validity
 		var can_afford = game_manager.can_afford(tower_manager.get_tower_cost(tower_manager.selected_tower_type))
 		var valid_position = is_valid_build_position(grid_pos) and !occupied_positions.has(grid_pos)
 	
@@ -131,6 +131,7 @@ func create_tower(grid_pos: Vector2):
 	tower.set_final_material()
 	occupied_positions[grid_pos] = true
 	player_occupied_positions[grid_pos] = true  # For VS Mode
+	print("[GridManager] Player tower created at: ", grid_pos)
 
 func get_grid_position(world_position: Vector3) -> Vector2:
 	var grid_x = floor(world_position.x / grid_size)
@@ -138,20 +139,17 @@ func get_grid_position(world_position: Vector3) -> Vector2:
 	return Vector2(grid_x, grid_z)
 
 func get_world_position(grid_pos: Vector2) -> Vector3:
-	return Vector3(grid_pos.x * grid_size + 0.5, 0, grid_pos.y * grid_size + 0.5)
+	return Vector3(grid_pos.x, 0, grid_pos.y)
 
 func is_valid_build_position(grid_pos: Vector2) -> bool:
 	if occupied_positions.has(grid_pos):
 		return false
 	
-	# Player's build areas (x = -7 or x = -5)
-	if (grid_pos.x >= -7 and grid_pos.x <= -6) or (grid_pos.x >= -5 and grid_pos.x <= -4):
+	# Only allow player to build in player build areas (x = -5,-4,-2,-1)
+	if (grid_pos.x == -5) or (grid_pos.x == -4) or (grid_pos.x == -2) or (grid_pos.x == -1):
 		return true
 	
-	# AI's build areas (x = 5 or x = 7)
-	if (grid_pos.x >= 5 and grid_pos.x <= 6) or (grid_pos.x >= 7 and grid_pos.x <= 8):
-		return true
-	
+	# Explicitly prevent building in AI areas or any other area
 	return false
 
 # VS Mode additions
@@ -160,19 +158,28 @@ func get_available_positions(owner: String) -> Array:
 	var grid_positions
 	
 	if owner == "player":
-		# Player grid is on the left sides
-		var positions1 = get_grid_range(Vector2(-7, -10), Vector2(-6, 10))  # First build area
-		var positions2 = get_grid_range(Vector2(-5, -10), Vector2(-4, 10))  # Second build area
-		grid_positions = positions1 + positions2
+		# Player grid is on the left sides (x = -5,-4,-2,-1)
+		var positions1 = get_grid_range(Vector2(-5, -10), Vector2(-5, 10))
+		var positions2 = get_grid_range(Vector2(-4, -10), Vector2(-4, 10))
+		var positions3 = get_grid_range(Vector2(-2, -10), Vector2(-2, 10))
+		var positions4 = get_grid_range(Vector2(-1, -10), Vector2(-1, 10))
+		grid_positions = positions1 + positions2 + positions3 + positions4
 	else:
-		# AI grid is on the right sides
-		var positions1 = get_grid_range(Vector2(5, -10), Vector2(6, 10))  # First build area
-		var positions2 = get_grid_range(Vector2(7, -10), Vector2(8, 10))  # Second build area
-		grid_positions = positions1 + positions2
+		# AI grid is on the right sides (x = 1,2,4,5)
+		var positions1 = get_grid_range(Vector2(1, -10), Vector2(1, 10))
+		var positions2 = get_grid_range(Vector2(2, -10), Vector2(2, 10))
+		var positions3 = get_grid_range(Vector2(4, -10), Vector2(4, 10))
+		var positions4 = get_grid_range(Vector2(5, -10), Vector2(5, 10))
+		grid_positions = positions1 + positions2 + positions3 + positions4
 	
 	# Filter out occupied positions
 	for pos in grid_positions:
-		var occupied = player_occupied_positions.has(pos) if owner == "player" else ai_occupied_positions.has(pos)
+		var occupied = false
+		if owner == "player":
+			occupied = player_occupied_positions.has(pos)
+		else:
+			occupied = ai_occupied_positions.has(pos)
+			
 		if !occupied:
 			available.append(pos)
 		
@@ -203,6 +210,7 @@ func create_ai_tower(grid_pos: Vector2, tower_type: int):
 	tower.set_final_material()
 	ai_occupied_positions[grid_pos] = true
 	occupied_positions[grid_pos] = true  # For compatibility with existing code
+	print("[GridManager] AI tower created at: ", grid_pos, " of type: ", tower_type)
 
 # VS Mode lane setup
 func setup_vs_lanes():
@@ -211,20 +219,30 @@ func setup_vs_lanes():
 	for lane in existing_lanes:
 		lane.queue_free()
 	
-	# Create player lanes
-	var player_build_lane1 = create_lane("player_build_lane1", Vector3(-7, 0, 0), Color(0.2, 0.5, 0.2, 0.5))
-	var player_enemy_lane = create_lane("player_enemy_lane", Vector3(-6, 0, 0), Color(0.3, 0.3, 0.3))
-	var player_build_lane2 = create_lane("player_build_lane2", Vector3(-5, 0, 0), Color(0.2, 0.5, 0.2, 0.5))
+	print("[GridManager] Setting up VS lanes with correct layout")
 	
-	# Create AI lanes
-	var ai_build_lane1 = create_lane("ai_build_lane1", Vector3(5, 0, 0), Color(0.2, 0.5, 0.2, 0.5))
-	var ai_enemy_lane = create_lane("ai_enemy_lane", Vector3(6, 0, 0), Color(0.3, 0.3, 0.3))
-	var ai_build_lane2 = create_lane("ai_build_lane2", Vector3(7, 0, 0), Color(0.2, 0.5, 0.2, 0.5))
+	# Create player build areas - darker green for buildable
+	create_lane("player_build_lane1", Vector3(-5, 0, 0), Color(0.2, 0.7, 0.2, 0.7))
+	create_lane("player_build_lane2", Vector3(-4, 0, 0), Color(0.2, 0.7, 0.2, 0.7))
+	create_lane("player_mob_lane", Vector3(-3, 0, 0), Color(0.8, 0.3, 0.3, 0.7))  # Red for player mob lane
+	create_lane("player_build_lane3", Vector3(-2, 0, 0), Color(0.2, 0.7, 0.2, 0.7))
+	create_lane("player_build_lane4", Vector3(-1, 0, 0), Color(0.2, 0.7, 0.2, 0.7))
+	
+	# Create center gap
+	create_lane("center_gap", Vector3(0, 0, 0), Color(0.3, 0.3, 0.6, 0.3))
+	
+	# Create AI lanes - darker blue for AI build areas
+	create_lane("ai_build_lane1", Vector3(1, 0, 0), Color(0.2, 0.2, 0.7, 0.7))
+	create_lane("ai_build_lane2", Vector3(2, 0, 0), Color(0.2, 0.2, 0.7, 0.7))
+	create_lane("ai_mob_lane", Vector3(3, 0, 0), Color(0.3, 0.3, 0.8, 0.7))  # Blue for AI mob lane
+	create_lane("ai_build_lane3", Vector3(4, 0, 0), Color(0.2, 0.2, 0.7, 0.7))
+	create_lane("ai_build_lane4", Vector3(5, 0, 0), Color(0.2, 0.2, 0.7, 0.7))
 
+	print("[GridManager] VS lanes setup complete")
 
 func create_lane(name: String, position: Vector3, color: Color) -> MeshInstance3D:
 	var lane_mesh = PlaneMesh.new()
-	lane_mesh.size = Vector2(1.0, 20.0)  # 1 unit wide for clearer separation
+	lane_mesh.size = Vector2(0.95, 20.0)  # Slightly smaller than 1.0 to see grid better
 	
 	var material = StandardMaterial3D.new()
 	material.albedo_color = color

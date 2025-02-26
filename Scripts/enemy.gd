@@ -7,7 +7,7 @@ class_name Enemy
 @export var max_health: float = 100.0
 @export var current_health: float = 100.0
 @export var movement_speed: float = 1.0
-@export var gold_value: int = 10
+@export var gold_value: int = 1
 @export var damage_to_base: int = 1
 @export var enemy_color: Color = Color(1, 0, 0)  # Default red color
 
@@ -30,19 +30,22 @@ signal health_changed(current_health: float, max_health: float)
 func _ready():
 	print("[Enemy] Initializing enemy: ", enemy_name)
   
-  # Set collision layer to 4 (enemy layer) and make sure we're a proper physics body
+	# Set collision layer to 4 (enemy layer) and make sure we're a proper physics body
 	collision_layer = 4
 	collision_mask = 0  # Don't detect collisions with anything
+	
+	# Add to enemies group for easier management
+	add_to_group("enemies")
   
 	setup_enemy_mesh()
 	setup_health_bar()
 	current_health = max_health
   
-  # Only generate path if no custom path is set
+	# Only generate path if no custom path is set
 	if path_points.is_empty():
 		generate_path()
 	
-	print("[Enemy] Setup complete. Health: ", current_health)
+	print("[Enemy] Setup complete. Health: ", current_health, " - Path: ", path_points)
 
 func setup_enemy_mesh():
 	if !mesh_instance:
@@ -63,7 +66,7 @@ func setup_health_bar():
 		health_bar.name = "HealthBar"
 		add_child(health_bar)
   
-  # Create health bar mesh (green bar)
+	# Create health bar mesh (green bar)
 	var bar_mesh = BoxMesh.new()
 	var bar_instance = MeshInstance3D.new()
 	bar_instance.mesh = bar_mesh
@@ -77,12 +80,15 @@ func setup_health_bar():
 	health_bar.add_child(bar_instance)
 
 func generate_path():
-  # Generate path points along the lane
+	# Generate path points along the lane
 	path_points.clear()
   
-  # Default path for single lane mode
+	# Default path for single lane mode in endless mode
+	# This should be overridden by the enemy_manager in VS mode
 	path_points.append(Vector3(0, 0.5, -10))  # Start point
 	path_points.append(Vector3(0, 0.5, 10))   # End point
+	
+	print("[Enemy] Generated default path")
 
 func _process(delta):
 	move_along_path(delta)
@@ -107,10 +113,10 @@ func move_along_path(delta):
 
 func update_health_bar():
 	var health_percentage = current_health / max_health
-	if health_bar.get_child_count() > 0:
+	if health_bar and health_bar.get_child_count() > 0:
 		health_bar.get_child(0).scale.x = max(health_percentage, 0)
 	
-	# Update color based on health percentage
+		# Update color based on health percentage
 		var bar_material = health_bar.get_child(0).material_override as StandardMaterial3D
 		if bar_material:
 			bar_material.albedo_color = Color(1 - health_percentage, health_percentage, 0)
@@ -130,17 +136,21 @@ func die():
 	queue_free()
 
 func reached_end():
+	print("[Enemy] Reached end! Path: ", path_points, ", Target player: ", target_player)
 	enemy_reached_end.emit(self)
   
-  # In VS mode, determine which base to damage
+	# In VS mode, determine which base to damage based on target_player flag
 	var game_manager = get_node("/root/Main/GameManager")
 	if game_manager.is_vs_mode:
 		if target_player:
+			print("[Enemy] Dealing ", damage_to_base, " damage to player base")
 			game_manager.take_base_damage(damage_to_base)
 		else:
+			print("[Enemy] Dealing ", damage_to_base, " damage to AI base")
 			game_manager.take_ai_base_damage(damage_to_base)
 	else:
-	# Legacy behavior for endless mode
+		# Legacy behavior for endless mode
+		print("[Enemy] Endless mode - Dealing ", damage_to_base, " damage to base")
 		game_manager.take_base_damage(damage_to_base)
 	
 	queue_free()

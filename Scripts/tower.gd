@@ -148,25 +148,29 @@ func _process(delta):
 		select_new_target()
 
 func select_new_target():
+	# Remove any invalid enemies
 	enemies_in_range = enemies_in_range.filter(func(enemy): return is_instance_valid(enemy))
   
 	if !enemies_in_range.is_empty():
-	# In VS mode, prioritize enemies based on tower owner
+		# Filter enemies based on tower ownership and target
+		var valid_targets = []
+		
 		if is_ai_tower:
-	  # AI towers prioritize enemies sent by player (target_player = false)
-			var ai_targets = enemies_in_range.filter(func(enemy): return !enemy.target_player)
-			if !ai_targets.is_empty():
-				current_target = ai_targets[0]
-				return
+			# AI towers should only target enemies trying to attack the AI base
+			# These would be enemies where target_player = false (player-sent enemies)
+			valid_targets = enemies_in_range.filter(func(enemy): return !enemy.target_player)
 		else:
-	  # Player towers prioritize enemies targeting player (target_player = true)
-			var player_targets = enemies_in_range.filter(func(enemy): return enemy.target_player)
-			if !player_targets.is_empty():
-				current_target = player_targets[0]
-				return
-	
-	# If no preferred targets, choose first enemy
-		current_target = enemies_in_range[0]
+			# Player towers should only target enemies trying to attack the player base
+			# These would be enemies where target_player = true (AI-sent enemies)
+			valid_targets = enemies_in_range.filter(func(enemy): return enemy.target_player)
+		
+		# If we have valid targets, pick the first one
+		if !valid_targets.is_empty():
+			current_target = valid_targets[0]
+			print("[Tower] Targeting enemy: ", current_target.enemy_name, ", Target player: ", current_target.target_player)
+		else:
+			# No valid targets
+			current_target = null
 
 func attack():
 	if current_target and is_instance_valid(current_target):

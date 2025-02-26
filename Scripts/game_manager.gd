@@ -7,12 +7,14 @@ signal base_health_changed(new_amount: int, damage_taken: int)
 signal ai_base_health_changed(new_amount: int, damage_taken: int)
 signal game_over()
 signal ai_game_over()
+signal game_mode_changed(mode: int)
+
 
 var gold: int = 500
-var income: int = 10
+var income: int = 1
 var base_health: int = 100  # Starting base health
 var ai_base_health: int = 100  # AI base health for VS mode
-var income_interval: float = 10.0  # Seconds between income ticks
+var income_interval: float = 1.0  # Seconds between income ticks
 var income_timer: float = 0.0
 var player_lane: MeshInstance3D = null
 var ai_lane: MeshInstance3D = null
@@ -87,18 +89,29 @@ func trigger_ai_game_over():
 
 func set_vs_mode(enabled: bool):
 	is_vs_mode = enabled
-  
-  # Reset health values when changing modes
+	
+	# Reset health values when changing modes
 	if is_vs_mode:
 		base_health = 100
 		ai_base_health = 100
 		base_health_changed.emit(base_health, 0)
 		ai_base_health_changed.emit(ai_base_health, 0)
+	
+	# When changing mode, emit the signal with the appropriate mode
+	if enabled:
+		# This is either VS Player or VS AI mode - the game mode manager will determine which
+		# We'll emit with 1 (VS Player) as a default
+		game_mode_changed.emit(1)
+	else:
+		# This is Endless Waves mode
+		game_mode_changed.emit(0)
+		
+	print("[GameManager] VS mode set to: ", enabled)
 
 func reset_game():
   # Reset all values to starting values
 	gold = 500
-	income = 10
+	income = 1
 	base_health = 100
 	ai_base_health = 100
 	income_timer = 0.0

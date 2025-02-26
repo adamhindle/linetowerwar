@@ -27,7 +27,7 @@ var enemy_data = {
 	GameEnums.EnemyType.FAST: {
 		"name": "Fast Enemy",
 		"health": 75.0,
-		"speed": 0.75,
+		"speed": 0.2,
 		"gold": 15,
 		"damage": 1,
 		"color": Color(0.2, 0.8, 0.2)
@@ -35,7 +35,7 @@ var enemy_data = {
 	GameEnums.EnemyType.TANK: {
 		"name": "Tank Enemy",
 		"health": 200.0,
-		"speed": 0.3,
+		"speed": 0.1,
 		"gold": 20,
 		"damage": 2,
 		"color": Color(0.2, 0.2, 0.8)
@@ -43,7 +43,7 @@ var enemy_data = {
 	GameEnums.EnemyType.BOSS: {
 		"name": "Boss Enemy",
 		"health": 500.0,
-		"speed": 0.2,
+		"speed": 0.05,
 		"gold": 50,
 		"damage": 5,
 		"color": Color(0.8, 0.1, 0.8)
@@ -68,8 +68,8 @@ var enemy_income_bonuses = {
 @onready var game_manager: Node = get_node("/root/Main/GameManager")
 
 func _ready():
-  # Initialize enemy manager
-	pass
+	# Initialize enemy manager
+	print("[EnemyManager] Initialized")
 
 func _process(delta):
 	if wave_in_progress:
@@ -82,7 +82,7 @@ func start_next_wave():
 	current_wave_number += 1
 	current_wave = Wave.new(current_wave_number)
   
-  # Calculate total enemies in wave
+	# Calculate total enemies in wave
 	enemies_remaining = 0
 	for enemy_group in current_wave.enemies:
 		enemies_remaining += enemy_group.count
@@ -93,8 +93,8 @@ func start_next_wave():
 	wave_in_progress = true
 	spawn_timer = 0.0
   
+	print("[EnemyManager] Wave ", current_wave_number, " started! Enemies: ", enemies_remaining)
 	emit_signal("wave_started", current_wave_number)
-	print("Wave ", current_wave_number, " started!")
 
 func handle_wave_spawning(delta):
 	if enemies_remaining <= 0:
@@ -142,10 +142,10 @@ func spawn_next_enemy():
 func create_enemy(type: int, health_multiplier: float) -> Enemy:
 	var enemy = enemy_scene.instantiate() as Enemy
   
-  # Get base stats from enemy_data
+	# Get base stats from enemy_data
 	var base_stats = enemy_data[type]
   
-  # Apply wave scaling
+	# Apply wave scaling
 	enemy.enemy_name = base_stats["name"]
 	enemy.max_health = base_stats["health"] * health_multiplier
 	enemy.current_health = enemy.max_health
@@ -153,15 +153,12 @@ func create_enemy(type: int, health_multiplier: float) -> Enemy:
 	enemy.gold_value = base_stats["gold"]
 	enemy.damage_to_base = base_stats["damage"]
   
-  # Set enemy color
+	# Set enemy color
 	enemy.enemy_color = base_stats["color"]
   
-  # Connect signals
+	# Connect signals
 	enemy.enemy_died.connect(_on_enemy_died)
 	enemy.enemy_reached_end.connect(_on_enemy_reached_end)
-  
-  # Set initial position
-	enemy.position = Vector3(0, 0.5, -10)  # Start point
   
 	add_child(enemy)
 	print("[EnemyManager] Enemy spawned: ", enemy.enemy_name, " Health: ", enemy.current_health)
@@ -176,7 +173,10 @@ func _on_enemy_died(enemy: Enemy):
 func _on_enemy_reached_end(enemy: Enemy):
 	enemies_alive -= 1
 	print("[EnemyManager] Enemy reached end! Lost ", enemy.damage_to_base, " lives")
-	game_manager.take_base_damage(enemy.damage_to_base)
+	if enemy.target_player:
+		game_manager.take_base_damage(enemy.damage_to_base)
+	else:
+		game_manager.take_ai_base_damage(enemy.damage_to_base)
 	check_wave_status()
 
 func check_wave_status():
@@ -196,36 +196,34 @@ func send_enemy_to_player(type: int) -> void:
 	var enemy = create_enemy(type, 1.0)
 	enemy.target_player = true  # This enemy targets player base
 	
-	# Set path for AI enemy lane
+	# Set path for AI mob lane to player - AI sends enemies on lane -3 to attack player
 	enemy.path_points.clear()
-	enemy.path_points.append(Vector3(6, 0.5, -10))  # AI enemy lane start position
-	enemy.path_points.append(Vector3(6, 0.5, 10))   # Player base position
+	enemy.path_points.append(Vector3(-3, 0.5, -10))  # Player mob lane start (x=-3)
+	enemy.path_points.append(Vector3(-3, 0.5, 10))   # Player base position
 	
-	# Position at start of path
+	# Position at start of path - using exact grid position
 	enemy.position = enemy.path_points[0]
 	enemy.current_point_index = 0
 	enemy.path_progress = 0.0
 	
-	add_child(enemy)
-	print("AI sent enemy to player: ", enemy.enemy_name)
-  
+	print("[EnemyManager] AI sent enemy to player: ", enemy.enemy_name, " - Lane position: ", enemy.position)
+
 func send_enemy_to_ai(type: int) -> void:
 	# Player sends enemy to AI
 	var enemy = create_enemy(type, 1.0)
 	enemy.target_player = false  # This enemy targets AI base
 	
-	# Set path for player enemy lane
+	# Set path for player mob lane to AI - Player sends enemies on lane 3 to attack AI
 	enemy.path_points.clear()
-	enemy.path_points.append(Vector3(-6, 0.5, -10))  # Player enemy lane start position
-	enemy.path_points.append(Vector3(-6, 0.5, 10))   # AI base position
+	enemy.path_points.append(Vector3(3, 0.5, -10))  # AI mob lane start (x=3)
+	enemy.path_points.append(Vector3(3, 0.5, 10))   # AI base position
 	
-	# Position at start of path
+	# Position at start of path - using exact grid position
 	enemy.position = enemy.path_points[0]
 	enemy.current_point_index = 0
 	enemy.path_progress = 0.0
 	
-	add_child(enemy)
-	print("Player sent enemy to AI: ", enemy.enemy_name)
+	print("[EnemyManager] Player sent enemy to AI: ", enemy.enemy_name, " - Lane position: ", enemy.position)
 	
 	# Increase player income
 	game_manager.add_income_value(get_enemy_income_bonus(type))

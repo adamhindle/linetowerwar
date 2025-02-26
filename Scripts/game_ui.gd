@@ -16,12 +16,19 @@ var send_cooldown_timer: float = 0.0
 var send_cooldown_time: float = 3.0  # 3 seconds between sends
 var can_send_enemy: bool = true
 
+# Startup cooldown
+var startup_cooldown_time: float = 30.0  # 30 seconds initial cooldown
+var startup_cooldown_active: bool = false
+var startup_cooldown_timer: float = 0.0
+
 var tower_button_scene = preload("res://Scenes/tower_button.tscn")
 var tower_manager: Node
 var game_manager: Node
 var enemy_manager: Node
 
 func _ready():
+	print("[GameUI] Initializing...")
+	
 	# Get references to managers
 	tower_manager = get_node("/root/Main/TowerManager")
 	game_manager = get_node("/root/Main/GameManager")
@@ -32,6 +39,7 @@ func _ready():
 	game_manager.income_changed.connect(_on_income_changed)
 	enemy_manager.wave_started.connect(_on_wave_started)
 	enemy_manager.wave_completed.connect(_on_wave_completed)
+	game_manager.game_mode_changed.connect(_on_game_mode_changed)
   
 	# Add null check for button
 	if next_wave_button:
@@ -58,16 +66,45 @@ func _ready():
 	vs_panel.visible = false
 	endless_panel.visible = false
 	
-	# Add cooldown label for VS mode
-	var cooldown_label = Label.new()
-	cooldown_label.name = "CooldownLabel"
-	cooldown_label.text = "Ready to send"
+	# Add cooldown label for VS mode if it doesn't exist
 	if vs_panel and vs_panel.get_node("SendEnemiesContainer"):
-		vs_panel.get_node("SendEnemiesContainer").add_child(cooldown_label)
+		if not vs_panel.get_node("SendEnemiesContainer").has_node("CooldownLabel"):
+			var cooldown_label = Label.new()
+			cooldown_label.name = "CooldownLabel"
+			cooldown_label.text = "Ready to send"
+			vs_panel.get_node("SendEnemiesContainer").add_child(cooldown_label)
+	
+	# Startup cooldown is not active until a VS game mode is selected
+	startup_cooldown_active = false
+	
+	print("[GameUI] Initialization complete")
 
 func _process(delta):
-	# Process send cooldown timer
-	if !can_send_enemy:
+	# Process startup cooldown first
+	if startup_cooldown_active:
+		startup_cooldown_timer += delta
+		if startup_cooldown_timer >= startup_cooldown_time:
+			startup_cooldown_active = false
+			can_send_enemy = true
+			update_send_button_states(true)
+			var cooldown_label = vs_panel.get_node_or_null("SendEnemiesContainer/CooldownLabel")
+			if cooldown_label:
+				cooldown_label.text = "Ready to send"
+			print("[GameUI] Startup cooldown complete - sending enemies now allowed")
+		else:
+			# Update the cooldown label with remaining time
+			var cooldown_label = vs_panel.get_node_or_null("SendEnemiesContainer/CooldownLabel")
+			if cooldown_label:
+				var remaining = startup_cooldown_time - startup_cooldown_timer
+				cooldown_label.text = "Game starts in: %d seconds" % ceil(remaining)
+			
+			# Make sure sending is disabled during startup cooldown
+			can_send_enemy = false
+			update_send_button_states(false)
+			return
+	
+	# Process regular send cooldown if startup is complete
+	if !can_send_enemy and !startup_cooldown_active:
 		send_cooldown_timer += delta
 		if send_cooldown_timer >= send_cooldown_time:
 			send_cooldown_timer = 0.0
@@ -82,6 +119,8 @@ func _process(delta):
 				cooldown_label.text = "Cooldown: %.1f" % (send_cooldown_time - send_cooldown_timer)
 
 func setup_tower_buttons():
+	print("[GameUI] Setting up tower buttons")
+	
 	# Create a button for each tower type
 	for type in tower_manager.TowerType.values():
 		# For endless mode
@@ -97,6 +136,7 @@ func setup_tower_buttons():
 				button.pressed.connect(_on_tower_button_pressed.bind(type))
 		
 				endless_grid.add_child(button)
+				print("[GameUI] Added tower button for endless mode: ", tower_data["name"])
 	
 		# For VS mode
 		if vs_panel:
@@ -111,10 +151,12 @@ func setup_tower_buttons():
 				button.pressed.connect(_on_tower_button_pressed.bind(type))
 		
 				vs_grid.add_child(button)
+				print("[GameUI] Added tower button for VS mode: ", tower_data["name"])
 
 func _on_tower_button_pressed(type: int):
 	tower_manager.set_selected_tower(type)
 	update_button_states()
+	print("[GameUI] Tower button pressed: ", type)
 
 func update_button_states():
 	# Update endless mode buttons
@@ -170,17 +212,19 @@ func _on_wave_started(wave_number: int):
 		if next_wave_button:
 			next_wave_button.disabled = true
   
-	print("Wave %d started!" % wave_number)
+	print("[GameUI] Wave %d started!" % wave_number)
 
 func _on_wave_completed(wave_number: int):
 	if next_wave_button:
 		next_wave_button.disabled = false
-	print("Wave %d completed!" % wave_number)
+	print("[GameUI] Wave %d completed!" % wave_number)
 
 func _on_next_wave_pressed():
 	enemy_manager.start_next_wave()
 
 func update_resource_display():
+	print("[GameUI] Updating resource display")
+	
 	# Update Endless Mode UI
 	if endless_panel:
 		var gold_label = endless_panel.get_node("ResourcePanel/GoldLabel")
@@ -254,6 +298,21 @@ func _on_ai_base_health_changed(new_health: int, damage_taken: int):
 func _on_game_over():
 	game_over_panel.visible = true
 
+# Handle game mode changes
+func _on_game_mode_changed(mode: int):
+	print("[GameUI] Game mode changed, starting cooldown period")
+	# If this is a VS mode, start the startup cooldown
+	if mode == 1 or mode == 2:  # VS Player or VS AI
+		startup_cooldown_active = true
+		startup_cooldown_timer = 0.0
+		can_send_enemy = false
+		update_send_button_states(false)
+		
+		# Update the cooldown label
+		var cooldown_label = vs_panel.get_node_or_null("SendEnemiesContainer/CooldownLabel")
+		if cooldown_label:
+			cooldown_label.text = "Game starts in: %d seconds" % startup_cooldown_time
+
 # VS Mode additions
 func setup_mode_selection():
 	var endless_button = $ModeSelectionPanel/EndlessButton
@@ -268,8 +327,11 @@ func setup_mode_selection():
   
 	if vs_ai_button:
 		vs_ai_button.pressed.connect(_on_vs_ai_selected)
+	
+	print("[GameUI] Mode selection buttons initialized")
 
 func _on_endless_mode_selected():
+	print("[GameUI] Endless mode selected")
 	var game_mode_manager = get_node("/root/Main/GameModeManager")
 	if game_mode_manager:
 		game_mode_manager.set_game_mode(0)  # GameModeManager.GameMode.ENDLESS_WAVES
@@ -282,6 +344,7 @@ func _on_endless_mode_selected():
 	game_manager.set_vs_mode(false)
 
 func _on_vs_player_selected():
+	print("[GameUI] VS Player mode selected")
 	var game_mode_manager = get_node("/root/Main/GameModeManager")
 	if game_mode_manager:
 		game_mode_manager.set_game_mode(1)  # GameModeManager.GameMode.VS_PLAYER
@@ -294,6 +357,7 @@ func _on_vs_player_selected():
 	game_manager.set_vs_mode(true)
 
 func _on_vs_ai_selected():
+	print("[GameUI] VS AI mode selected")
 	var game_mode_manager = get_node("/root/Main/GameModeManager")
 	if game_mode_manager:
 		game_mode_manager.set_game_mode(2)  # GameModeManager.GameMode.VS_AI
@@ -310,6 +374,13 @@ func setup_send_enemy_buttons():
 	var send_enemies_container = vs_panel.get_node("SendEnemiesContainer")
 	if !send_enemies_container:
 		return
+	
+	# Clear any existing buttons first
+	for child in send_enemies_container.get_children():
+		if child.name != "EnemySelectionHeader" and child.name != "CooldownLabel":
+			child.queue_free()
+	
+	print("[GameUI] Setting up enemy send buttons")
   
 	# Create a button for each enemy type
 	for type in GameEnums.EnemyType.values():
@@ -325,9 +396,10 @@ func setup_send_enemy_buttons():
 			button.set_meta("enemy_type", type)  # Store the enemy type
 	  
 			send_enemies_container.add_child(button)
+			print("[GameUI] Added button for enemy type: ", enemy_data["name"])
 
 func _on_send_enemy_pressed(type: int):
-	if !enemy_manager or !can_send_enemy:
+	if !enemy_manager or !can_send_enemy or startup_cooldown_active:
 		return
 	
 	var cost = enemy_manager.get_enemy_send_cost(type)
@@ -335,12 +407,17 @@ func _on_send_enemy_pressed(type: int):
 	if game_manager.can_afford(cost):
 		game_manager.remove_gold(cost)
 		enemy_manager.send_enemy_to_ai(type)
-		print("Sent enemy type %d to opponent" % type)
+		print("[GameUI] Player sent enemy type ", type, " to opponent")
 		
 		# Start cooldown
 		can_send_enemy = false
 		send_cooldown_timer = 0.0
 		update_send_button_states(false)
+		
+		# Update cooldown label
+		var cooldown_label = vs_panel.get_node_or_null("SendEnemiesContainer/CooldownLabel")
+		if cooldown_label:
+			cooldown_label.text = "Cooldown: %.1f" % send_cooldown_time
 
 func update_send_button_states(enabled: bool):
 	# Update the state of all send buttons
@@ -359,14 +436,27 @@ func update_send_button_states(enabled: bool):
 					button.modulate = Color(1, 1, 1, 1) if (enabled and can_afford) else Color(0.5, 0.5, 0.5, 1)
 
 func toggle_vs_mode_ui(enabled: bool):
+	print("[GameUI] Toggling VS mode UI: ", enabled)
+	
 	vs_panel.visible = enabled
 	endless_panel.visible = !enabled
 	
-	# Reset cooldown when toggling UI
-	can_send_enemy = true
-	send_cooldown_timer = 0.0
-	
+	# Start with startup cooldown if this is a VS mode
 	if vs_panel.visible:
+		# Update or setup send enemy buttons when showing VS mode UI
+		setup_send_enemy_buttons()
+		
+		# Reset the cooldown label based on current state
 		var cooldown_label = vs_panel.get_node_or_null("SendEnemiesContainer/CooldownLabel")
 		if cooldown_label:
-			cooldown_label.text = "Ready to send"
+			if startup_cooldown_active:
+				var remaining = startup_cooldown_time - startup_cooldown_timer
+				cooldown_label.text = "Game starts in: %d seconds" % ceil(remaining)
+			else:
+				cooldown_label.text = "Ready to send"
+		
+		# Update button states
+		update_send_button_states(!startup_cooldown_active)
+	
+	# Update resource display for the appropriate mode
+	update_resource_display()
